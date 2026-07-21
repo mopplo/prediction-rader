@@ -1,0 +1,90 @@
+---
+import type { MarketSummary } from '../lib/api';
+import {
+  changeClass,
+  formatChange,
+  formatDataConfidence,
+  formatPercent,
+  formatScore,
+  formatSpike,
+} from '../lib/format';
+
+interface Props {
+  market: MarketSummary;
+}
+
+const { market } = Astro.props;
+---
+
+<a href={`/market/${market.id}`} class="market-card emerging-card">
+  <div class="market-card-top">
+    <div>
+      {market.category && <p class="category">{market.category}</p>}
+      <h3>{market.title}</h3>
+    </div>
+    <span class="badge emerging">Emerging</span>
+  </div>
+
+  <div class="hero-metric">
+    <p class="label">Volume vs Baseline</p>
+    <p class="hero-value">{formatSpike(market.volume_spike)}</p>
+    <p class="hero-sub">
+      Attention score <strong>{formatScore(market.attention_score)}</strong>
+      · 24h {formatChange(market.change24h)}
+    </p>
+  </div>
+
+  <div class="market-card-grid compact">
+    <div>
+      <p class="label">Probability</p>
+      <p class="value">{formatPercent(market.probability)}</p>
+    </div>
+    <div>
+      <p class="label">24h Change</p>
+      <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
+    </div>
+    <div>
+      <p class="label">Attention Score</p>
+      <p class="value">{formatScore(market.attention_score)}</p>
+    </div>
+    <div>
+      <p class="label">Data Confidence</p>
+      <p class="value">{formatDataConfidence(market.confidence)}</p>
+    </div>
+  </div>
+</a>
+
+<style>
+  .emerging-card {
+    border-color: rgba(52, 211, 153, 0.35);
+  }
+
+  .badge.emerging {
+    background: rgba(16, 185, 129, 0.18);
+    color: #6ee7b7;
+  }
+
+  .hero-metric {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(16, 185, 129, 0.12);
+  }
+
+  .hero-value {
+    margin: 0.25rem 0 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #6ee7b7;
+  }
+
+  .hero-sub {
+    margin: 0.5rem 0 0;
+    color: #94a3b8;
+    font-size: 0.9rem;
+  }
+
+  .compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+</style>

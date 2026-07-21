@@ -1,0 +1,21 @@
+{
+  "name": "prediction-radar-frontend",
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0 --port 4321",
+    "build": "astro check && astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 4321",
+    "check": "astro check",
+    "test": "node --experimental-strip-types --test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.5.5",
+    "astro": "^5.1.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.2"
+  }
+}
