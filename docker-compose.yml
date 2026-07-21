@@ -1,0 +1,79 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: prediction_radar
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prediction_radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  bootstrap:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/prediction_radar
+      CORS_ORIGINS: http://localhost:4321
+      SYNC_MARKET_LIMIT: 200
+      MIN_VOLUME_24H: 10000
+      MIN_LIQUIDITY: 5000
+      MIN_PROBABILITY: 0.05
+      MAX_PROBABILITY: 0.95
+      MIN_HOURS_TO_END: 168
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python -m app.bootstrap
+    restart: "no"
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/prediction_radar
+      CORS_ORIGINS: http://localhost:4321
+      SYNC_MARKET_LIMIT: 200
+      MIN_VOLUME_24H: 10000
+      MIN_LIQUIDITY: 5000
+      MIN_PROBABILITY: 0.05
+      MAX_PROBABILITY: 0.95
+      MIN_HOURS_TO_END: 168
+    ports:
+      - "8000:8000"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  scheduler:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/prediction_radar
+      SYNC_MARKET_LIMIT: 200
+      MIN_VOLUME_24H: 10000
+      MIN_LIQUIDITY: 5000
+      MIN_PROBABILITY: 0.05
+      MAX_PROBABILITY: 0.95
+      MIN_HOURS_TO_END: 168
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+    command: python -m app.jobs.sync_markets
+
+  frontend:
+    build: ./frontend
+    environment:
+      PUBLIC_API_BASE_URL: http://api:8000
+      API_BASE_URL: http://api:8000
+    ports:
+      - "4321:4321"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

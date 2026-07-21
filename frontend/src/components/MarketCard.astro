@@ -1,0 +1,54 @@
+---
+import type { MarketSummary } from '../lib/api';
+import {
+  changeClass,
+  formatChange,
+  formatDataConfidence,
+  formatPercent,
+  formatSpike,
+  formatVolume,
+} from '../lib/format';
+
+interface Props {
+  market: MarketSummary;
+  badge?: string;
+}
+
+const { market, badge } = Astro.props;
+const change = market.change24h;
+---
+
+<a href={`/market/${market.id}`} class="market-card">
+  <div class="market-card-top">
+    <div>
+      {market.category && <p class="category">{market.category}</p>}
+      <h3>{market.title}</h3>
+    </div>
+    {badge && <span class="badge">{badge}</span>}
+  </div>
+  {market.signal_reason && <p class="signal-reason">{market.signal_reason}</p>}
+  <div class="market-card-grid">
+    <div>
+      <p class="label">Probability</p>
+      <p class="value">{formatPercent(market.probability)}</p>
+    </div>
+    <div>
+      <p class="label">24h Change</p>
+      <p class={`value ${changeClass(change)}`}>{formatChange(change)}</p>
+    </div>
+    <div>
+      <p class="label">Volume</p>
+      <p class="value">{formatVolume(market.volume)}</p>
+    </div>
+    <div>
+      <p class="label">Volume vs Baseline</p>
+      <p class="value">{formatSpike(market.volume_spike)}</p>
+    </div>
+    {market.confidence != null && (
+      <div>
+        <p class="label">Data Confidence</p>
+        <p class="value">{formatDataConfidence(market.confidence)}</p>
+      </div>
+    )}
+  </div>
+</a>

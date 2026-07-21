@@ -1,0 +1,101 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DailyRadar from '../components/DailyRadar.astro';
+import EmergingSignalCard from '../components/EmergingSignalCard.astro';
+import NarrativeTrends from '../components/NarrativeTrends.astro';
+import TopMoverCard from '../components/TopMoverCard.astro';
+import type { DailyRadarItem, MarketSummary, NarrativeTrendItem } from '../lib/api';
+import {
+  getDailyRadar,
+  getEmergingSignals,
+  getNarrativeTrends,
+  getTopMovers,
+} from '../lib/api';
+
+let topMovers: MarketSummary[] = [];
+let emergingSignals: MarketSummary[] = [];
+let dailyRadar: DailyRadarItem[] = [];
+let narrativeTrends: NarrativeTrendItem[] = [];
+let errorMessage: string | null = null;
+
+try {
+  const [movers, emerging, radar, narratives] = await Promise.all([
+    getTopMovers(),
+    getEmergingSignals(),
+    getDailyRadar(),
+    getNarrativeTrends(),
+  ]);
+
+  topMovers = movers;
+  const topMoverIds = new Set(topMovers.map((market) => market.id));
+  emergingSignals = emerging.filter((market) => !topMoverIds.has(market.id));
+
+  const shownIds = new Set([
+    ...topMoverIds,
+    ...emergingSignals.map((market) => market.id),
+  ]);
+  dailyRadar = radar
+    .filter((item) => !shownIds.has(item.market_id))
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+
+  const featuredIds = new Set([
+    ...shownIds,
+    ...dailyRadar.map((item) => item.market_id),
+  ]);
+  narrativeTrends = narratives.filter(
+    (item) => !item.representative_market_id || !featuredIds.has(item.representative_market_id),
+  );
+} catch (error) {
+  errorMessage = error instanceof Error ? error.message : 'Unable to load radar data.';
+}
+---
+
+<BaseLayout>
+  <section class="hero container">
+    <h1>Prediction Radar</h1>
+    <p class="subtitle">Discover where the world is changing its mind.</p>
+    <p class="description">
+      Track belief shifts, emerging attention, forming narratives, and daily briefing picks across
+      prediction markets.
+    </p>
+  </section>
+
+  <div class="container section-grid">
+    {errorMessage && <p class="error-state">{errorMessage}</p>}
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Top Movers</h2>
+        <p>Largest validated 24h probability shifts — ranked by absolute move, then signal quality.</p>
+      </div>
+      {topMovers.length === 0 ? (
+        <p class="empty-state">No markets passed the quality threshold for top movers.</p>
+      ) : (
+        <div class="cards-grid">
+          {topMovers.map((market) => (
+            <TopMoverCard market={market} />
+          ))}
+        </div>
+      )}
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Emerging Signals</h2>
+        <p>Rising attention: volume spike + probability movement, ranked by attention score (50/30/20).</p>
+      </div>
+      {emergingSignals.length === 0 ? (
+        <p class="empty-state">No emerging signals met the confidence and volume thresholds.</p>
+      ) : (
+        <div class="cards-grid">
+          {emergingSignals.map((market) => (
+            <EmergingSignalCard market={market} />
+          ))}
+        </div>
+      )}
+    </section>
+
+    <NarrativeTrends items={narrativeTrends} />
+    <DailyRadar items={dailyRadar} />
+  </div>
+</BaseLayout>

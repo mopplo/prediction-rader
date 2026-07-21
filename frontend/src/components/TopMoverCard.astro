@@ -1,0 +1,74 @@
+---
+import type { MarketSummary } from '../lib/api';
+import {
+  changeClass,
+  formatChange,
+  formatDataConfidence,
+  formatPercent,
+  formatSignificance,
+} from '../lib/format';
+
+interface Props {
+  market: MarketSummary;
+}
+
+const { market } = Astro.props;
+const change = market.change24h;
+---
+
+<a href={`/market/${market.id}`} class="market-card top-mover-card">
+  <div class="market-card-top">
+    <div>
+      {market.category && <p class="category">{market.category}</p>}
+      <h3>{market.title}</h3>
+    </div>
+    <span class="badge">Top Mover</span>
+  </div>
+
+  <div class="hero-metric">
+    <p class="label">24h Belief Shift</p>
+    <p class={`hero-value ${changeClass(change)}`}>{formatChange(change)}</p>
+  </div>
+
+  <div class="market-card-grid compact">
+    <div>
+      <p class="label">Probability</p>
+      <p class="value">{formatPercent(market.probability)}</p>
+    </div>
+    <div>
+      <p class="label">Signal Score</p>
+      <p class="value">{market.signal_score?.toFixed(0) ?? '—'}</p>
+    </div>
+    <div>
+      <p class="label">Data Confidence</p>
+      <p class="value">{formatDataConfidence(market.confidence)}</p>
+    </div>
+    <div>
+      <p class="label">Significance</p>
+      <p class="value">{formatSignificance(market.market_significance)}</p>
+    </div>
+  </div>
+</a>
+
+<style>
+  .top-mover-card {
+    border-color: rgba(96, 165, 250, 0.35);
+  }
+
+  .hero-metric {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(37, 99, 235, 0.12);
+  }
+
+  .hero-value {
+    margin: 0.25rem 0 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+  }
+
+  .compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+</style>

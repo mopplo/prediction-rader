@@ -1,0 +1,69 @@
+---
+import type { DailyRadarItem } from '../lib/api';
+import { formatChange, formatDataConfidence, formatScore, formatSpike } from '../lib/format';
+
+interface Props {
+  items: DailyRadarItem[];
+}
+
+const { items } = Astro.props;
+const topWhy = (item: DailyRadarItem) =>
+  item.why_it_moved?.[0] ?? item.signal_reason ?? 'Worth reading today';
+---
+
+<section class="panel daily-radar-panel">
+  <div class="panel-header">
+    <h2>Daily Radar</h2>
+    <p>Briefing-style picks ranked by composite signal score and data confidence.</p>
+  </div>
+  {items.length === 0 ? (
+    <p class="empty-state">No additional signals met the quality threshold today.</p>
+  ) : (
+    <ol class="radar-list">
+      {items.map((item) => (
+        <li>
+          <a href={`/market/${item.market_id}`} class="radar-item briefing">
+            <span class="rank">#{item.rank}</span>
+            <span class="title-block">
+              <span class="title">{item.title}</span>
+              <span class="reason">{topWhy(item)}</span>
+            </span>
+            <span class="meta">
+              <span class="score-pill">Score {formatScore(item.signal_score)}</span>
+              <span>{formatDataConfidence(item.confidence)}</span>
+              <span>{formatChange(item.change24h)} · {formatSpike(item.volume_spike)}</span>
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  )}
+</section>
+
+<style>
+  .daily-radar-panel {
+    border-color: rgba(251, 191, 36, 0.25);
+  }
+
+  .radar-item.briefing {
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .score-pill {
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(251, 191, 36, 0.16);
+    color: #fde68a;
+    font-weight: 600;
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+    min-width: 10rem;
+    text-align: right;
+  }
+</style>

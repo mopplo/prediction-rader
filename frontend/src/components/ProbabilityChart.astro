@@ -1,0 +1,122 @@
+---
+import type { MarketDetail } from '../lib/api';
+import { formatPercent } from '../lib/format';
+
+interface Props {
+  history: MarketDetail['history'];
+  coverageHours?: number | null;
+}
+
+const { history, coverageHours } = Astro.props;
+
+const width = 640;
+const height = 240;
+const padding = { top: 24, right: 24, bottom: 44, left: 48 };
+
+const points = history
+  .filter((point) => point.probability != null)
+  .map((point) => ({
+    ...point,
+    time: new Date(point.timestamp).getTime(),
+  }))
+  .sort((a, b) => a.time - b.time);
+
+const minTime = points.length ? points[0].time : 0;
+const maxTime = points.length ? points[points.length - 1].time : 1;
+const timeRange = Math.max(maxTime - minTime, 1);
+
+const minY = points.length ? Math.min(...points.map((point) => point.probability)) : 0;
+const maxY = points.length ? Math.max(...points.map((point) => point.probability)) : 1;
+const yRange = Math.max(maxY - minY, 0.05);
+const yMin = Math.max(0, minY - yRange * 0.1);
+const yMax = Math.min(1, maxY + yRange * 0.1);
+const ySpan = Math.max(yMax - yMin, 0.05);
+
+const plotWidth = width - padding.left - padding.right;
+const plotHeight = height - padding.top - padding.bottom;
+
+const toX = (time: number) => padding.left + ((time - minTime) / timeRange) * plotWidth;
+const toY = (probability: number) =>
+  padding.top + plotHeight - ((probability - yMin) / ySpan) * plotHeight;
+
+const path = points
+  .map((point, index) => `${index === 0 ? 'M' : 'L'} ${toX(point.time).toFixed(2)} ${toY(point.probability).toFixed(2)}`)
+  .join(' ');
+
+const yTicks = [yMin, yMin + ySpan / 2, yMax];
+const xTickCount = Math.min(points.length, 4);
+const xTicks = Array.from({ length: xTickCount }, (_, index) => {
+  const ratio = xTickCount === 1 ? 0 : index / (xTickCount - 1);
+  const time = minTime + timeRange * ratio;
+  return {
+    time,
+    label: new Date(time).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+  };
+});
+
+const current = points.length ? points[points.length - 1] : null;
+const hasEnoughPoints = points.length >= 3;
+const coverageLabel =
+  coverageHours != null && coverageHours > 0
+    ? `${Math.round(coverageHours)}h of stored history`
+    : 'History still building';
+---
+
+<div class="chart-wrap">
+  {!hasEnoughPoints ? (
+    <p class="empty-state">
+      Not enough history to chart yet ({coverageLabel}). Charts fill in after sync backfills CLOB history.
+    </p>
+  ) : (
+    <>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Probability history chart">
+        <defs>
+          <linearGradient id="chartFill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.35" />
+            <stop offset="100%" stop-color="#60a5fa" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width={width} height={height} fill="#0f172a" rx="16" />
+        {yTicks.map((tick) => (
+          <>
+            <line
+              x1={padding.left}
+              x2={width - padding.right}
+              y1={toY(tick)}
+              y2={toY(tick)}
+              stroke="#334155"
+              stroke-dasharray="4 4"
+            />
+            <text x={padding.left - 8} y={toY(tick) + 4} text-anchor="end" fill="#94a3b8" font-size="11">
+              {formatPercent(tick, 0)}
+            </text>
+          </>
+        ))}
+        {xTicks.map((tick) => (
+          <text
+            x={toX(tick.time)}
+            y={height - 12}
+            text-anchor="middle"
+            fill="#94a3b8"
+            font-size="11"
+          >
+            {tick.label}
+          </text>
+        ))}
+        <path
+          d={`${path} L ${toX(points[points.length - 1].time).toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} L ${toX(points[0].time).toFixed(2)} ${(padding.top + plotHeight).toFixed(2)} Z`}
+          fill="url(#chartFill)"
+        />
+        <path d={path} fill="none" stroke="#93c5fd" stroke-width="3" stroke-linecap="round" />
+        {current && (
+          <>
+            <circle cx={toX(current.time)} cy={toY(current.probability)} r="4" fill="#bfdbfe" />
+            <text x={padding.left} y={18} fill="#cbd5e1" font-size="12">
+              Current {formatPercent(current.probability, 1)} · {coverageLabel}
+            </text>
+          </>
+        )}
+      </svg>
+    </>
+  )}
+</div>

@@ -1,0 +1,115 @@
+---
+import type { NarrativeTrendItem } from '../lib/api';
+import {
+  formatChange,
+  formatSpike,
+  narrativeDirectionLabel,
+} from '../lib/format';
+
+interface Props {
+  items: NarrativeTrendItem[];
+}
+
+const { items } = Astro.props;
+---
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Narrative Trends</h2>
+    <p>Stories forming across related markets — active count, aggregate movement, and direction coherence.</p>
+  </div>
+  {items.length === 0 ? (
+    <p class="empty-state">No narrative clusters met the minimum member and activity thresholds.</p>
+  ) : (
+    <div class="narrative-grid">
+      {items.map((item) => (
+        <a
+          href={item.representative_market_id ? `/market/${item.representative_market_id}` : '#'}
+          class="narrative-card"
+        >
+          <div class="narrative-top">
+            <div>
+              {item.category && <p class="category">{item.category}</p>}
+              <h3>{item.title}</h3>
+            </div>
+            <span class="score">{Math.round(item.narrative_score)}</span>
+          </div>
+          <p class="summary">{item.summary}</p>
+          <div class="narrative-meta">
+            <span>{item.active_count}/{item.market_count} active</span>
+            <span>
+              {item.median_abs_change_24h != null
+                ? formatChange(item.median_abs_change_24h)
+                : '—'} median move
+            </span>
+            <span>{formatSpike(item.aggregate_volume_spike)}</span>
+            <span class="direction">
+              {narrativeDirectionLabel(item.dominant_direction, item.direction_coherence)}
+            </span>
+          </div>
+        </a>
+      ))}
+    </div>
+  )}
+</section>
+
+<style>
+  .narrative-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .narrative-card {
+    display: block;
+    padding: 1.1rem 1.25rem;
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.72);
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .narrative-card:hover {
+    border-color: rgba(167, 139, 250, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .narrative-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .narrative-top h3 {
+    margin: 0.35rem 0 0;
+    font-size: 1.05rem;
+  }
+
+  .score {
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    background: rgba(167, 139, 250, 0.18);
+    color: #ddd6fe;
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+
+  .summary {
+    margin: 0.75rem 0;
+    color: #cbd5e1;
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .narrative-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    color: #94a3b8;
+    font-size: 0.82rem;
+  }
+
+  .direction {
+    color: #c4b5fd;
+  }
+</style>

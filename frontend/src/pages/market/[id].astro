@@ -1,0 +1,305 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ProbabilityChart from '../../components/ProbabilityChart.astro';
+import { getMarketDetail } from '../../lib/api';
+import {
+  changeClass,
+  formatChange,
+  formatChange7d,
+  formatCoverageHours,
+  formatDataConfidence,
+  formatDate,
+  formatMarketStatus,
+  formatPercent,
+  formatRelativeUpdated,
+  formatScore,
+  formatSignificance,
+  formatSpike,
+  formatSyncedAtUtc,
+  formatVolume,
+} from '../../lib/format';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/');
+}
+
+let market = null;
+let errorMessage: string | null = null;
+
+try {
+  market = await getMarketDetail(id);
+} catch (error) {
+  errorMessage = error instanceof Error ? error.message : 'Unable to load market details.';
+}
+
+const components = market?.signal_components;
+const marketStatus = market ? formatMarketStatus(market.market_status, market.resolves_in_days) : null;
+---
+
+<BaseLayout title={market ? `${market.title} · Prediction Radar` : 'Market · Prediction Radar'}>
+  <div class="container">
+    <a href="/" class="back-link">← Back to radar</a>
+
+    {errorMessage && <p class="error-state">{errorMessage}</p>}
+
+    {market && (
+      <>
+        <section class="detail-hero">
+          <h1>{market.title}</h1>
+          {market.category && <p class="category-tag">{market.category}</p>}
+          <div class="hero-meta">
+            {market.market_status && (
+              <span class={`status-pill ${market.market_status === 'closed' ? 'closed' : 'open'}`}>
+                {marketStatus}
+              </span>
+            )}
+            {market.polymarket_url && (
+              <a
+                href={market.polymarket_url}
+                class="polymarket-link"
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                View on Polymarket
+              </a>
+            )}
+          </div>
+          {market.signal_reason && <p class="description">{market.signal_reason}</p>}
+          <p class="description">{formatCoverageHours(market.history_coverage_hours)}</p>
+          <div class="sync-meta">
+            <p>{formatRelativeUpdated(market.updated_at)}</p>
+            <p>Last synced at {formatSyncedAtUtc(market.last_synced_at ?? market.updated_at)}</p>
+          </div>
+        </section>
+
+        {market.why_it_moved && market.why_it_moved.length > 0 && (
+          <section class="panel why-panel">
+            <div class="panel-header">
+              <h2>Why It Moved</h2>
+              <p>Rule-based explanations derived from probability, volume, liquidity, and narrative context.</p>
+            </div>
+            <ul class="why-list">
+              {market.why_it_moved.map((reason) => (
+                <li>{reason}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section class="detail-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Probability History</h2>
+              <p>Stored CLOB and sync snapshots over the last 7 days.</p>
+            </div>
+            <ProbabilityChart history={market.history} coverageHours={market.history_coverage_hours} />
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h2>Market Snapshot</h2>
+              <p>Belief shift, liquidity, and data quality for this market.</p>
+            </div>
+            <div class="stat-grid">
+              <div class="stat-card">
+                <p class="label">Current Probability</p>
+                <p class="value">{formatPercent(market.probability, 1)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">1h Change</p>
+                <p class={`value ${changeClass(market.change1h)}`}>{formatChange(market.change1h)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">24h Change</p>
+                <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">7d Change</p>
+                <p class={`value ${changeClass(market.change7d)}`}>
+                  {formatChange7d(market.change7d, market.change7d_unavailable_reason)}
+                </p>
+              </div>
+              <div class="stat-card">
+                <p class="label">24h Volume</p>
+                <p class="value">{formatVolume(market.volume)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">Volume vs Baseline</p>
+                <p class="value">{formatSpike(market.volume_spike)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">Liquidity</p>
+                <p class="value">{formatVolume(market.liquidity)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">Market Significance</p>
+                <p class="value">{formatSignificance(market.market_significance)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">Market Status</p>
+                <p class="value">{marketStatus ?? 'Status unavailable'}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">Data Confidence</p>
+                <p class="value">{formatDataConfidence(market.confidence)}</p>
+              </div>
+              <div class="stat-card">
+                <p class="label">End Date</p>
+                <p class="value">{formatDate(market.end_date)}</p>
+              </div>
+              {market.attention_score != null && (
+                <div class="stat-card">
+                  <p class="label">Attention Score</p>
+                  <p class="value">{formatScore(market.attention_score)}</p>
+                </div>
+              )}
+            </div>
+
+            {market.signal_score != null && (
+              <div class="score-breakdown">
+                <div class="panel-header compact">
+                  <h3>Signal Score {market.signal_score.toFixed(0)}</h3>
+                  <p>How strongly probability shift, attention, liquidity, and persistence combine.</p>
+                </div>
+                {components && (
+                  <div class="score-grid">
+                    <div class="score-item">
+                      <span class="label">Probability</span>
+                      <span class="value">{components.probability?.toFixed(0) ?? '—'}</span>
+                    </div>
+                    <div class="score-item">
+                      <span class="label">Volume</span>
+                      <span class="value">{components.volume?.toFixed(0) ?? '—'}</span>
+                    </div>
+                    <div class="score-item">
+                      <span class="label">Liquidity</span>
+                      <span class="value">{components.liquidity?.toFixed(0) ?? '—'}</span>
+                    </div>
+                    <div class="score-item">
+                      <span class="label">Persistence</span>
+                      <span class="value">{components.persistence?.toFixed(0) ?? '—'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </>
+    )}
+  </div>
+</BaseLayout>
+
+<style>
+  .category-tag {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(96, 165, 250, 0.15);
+    color: #bfdbfe;
+    font-size: 0.85rem;
+  }
+
+  .score-breakdown {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+  }
+
+  .hero-meta,
+  .sync-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .hero-meta {
+    margin-top: 0.85rem;
+  }
+
+  .sync-meta {
+    margin-top: 0.6rem;
+    color: #94a3b8;
+    font-size: 0.9rem;
+  }
+
+  .sync-meta p {
+    margin: 0;
+  }
+
+  .status-pill,
+  .polymarket-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.2rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .status-pill.open {
+    background: rgba(34, 197, 94, 0.14);
+    color: #86efac;
+  }
+
+  .status-pill.closed {
+    background: rgba(248, 113, 113, 0.14);
+    color: #fca5a5;
+  }
+
+  .polymarket-link {
+    background: rgba(59, 130, 246, 0.14);
+    color: #bfdbfe;
+    border: 1px solid rgba(96, 165, 250, 0.28);
+  }
+
+  .panel-header.compact h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .score-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .score-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0.9rem;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.65);
+  }
+
+  .score-item .label {
+    color: #94a3b8;
+    font-size: 0.85rem;
+  }
+
+  .score-item .value {
+    color: #e2e8f0;
+    font-weight: 600;
+  }
+
+  .why-panel {
+    margin-bottom: 1.5rem;
+  }
+
+  .why-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+
+  .why-list li + li {
+    margin-top: 0.45rem;
+  }
+</style>
