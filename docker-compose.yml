@@ -68,7 +68,6 @@ services:
   frontend:
     build: ./frontend
     environment:
-      PUBLIC_API_BASE_URL: http://api:8000
       API_BASE_URL: http://api:8000
     ports:
       - "4321:4321"

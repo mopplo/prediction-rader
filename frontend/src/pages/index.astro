@@ -16,7 +16,6 @@ let topMovers: MarketSummary[] = [];
 let emergingSignals: MarketSummary[] = [];
 let dailyRadar: DailyRadarItem[] = [];
 let narrativeTrends: NarrativeTrendItem[] = [];
-let errorMessage: string | null = null;
 
 try {
   const [movers, emerging, radar, narratives] = await Promise.all([
@@ -46,7 +45,8 @@ try {
     (item) => !item.representative_market_id || !featuredIds.has(item.representative_market_id),
   );
 } catch (error) {
-  errorMessage = error instanceof Error ? error.message : 'Unable to load radar data.';
+  const message = error instanceof Error ? error.message : 'Unable to load radar data.';
+  throw new Error(`Static build failed while loading homepage radar data: ${message}`);
 }
 ---
 
@@ -61,8 +61,6 @@ try {
   </section>
 
   <div class="container section-grid">
-    {errorMessage && <p class="error-state">{errorMessage}</p>}
-
     <section class="panel">
       <div class="panel-header">
         <h2>Top Movers</h2>
