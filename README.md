@@ -127,16 +127,16 @@ Run the scheduler as a separate Render Background Worker / Cron:
 python -m app.jobs.sync_markets
 ```
 
-### Cloudflare Pages (frontend)
+### Cloudflare (frontend)
 
-Keep the monorepo. Configure Pages against the same Git repository:
+Keep the monorepo. Root Directory = `frontend`. Config lives in `frontend/wrangler.toml` (static assets from `dist`).
 
 | Setting | Value |
 |---------|-------|
 | Root Directory | `frontend` |
 | Build command | `npm install && npm run build` |
-| Build output directory | `dist` |
-| Environment variable | `API_BASE_URL=https://YOUR_RENDER_API` |
+| Deploy command | `npx wrangler deploy` |
+| Build environment variable | `API_BASE_URL=https://YOUR_RENDER_API` (must be a **build-time** var, not only runtime) |
 | Node version | `22` |
 
 Recommended custom domain: `radar.mopplo.com`.
