@@ -105,3 +105,10 @@ class PaginatedMarkets(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class RadarStats(BaseModel):
+    markets_tracked: int
+    active_signals: int
+    last_synced_at: datetime | None = None
+    sync_interval_minutes: int = 15

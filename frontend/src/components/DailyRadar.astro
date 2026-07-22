@@ -1,20 +1,24 @@
 ---
 import type { DailyRadarItem } from '../lib/api';
-import { formatChange, formatDataConfidence, formatScore, formatSpike } from '../lib/format';
+import {
+  dailyRadarWhySelected,
+  formatChange,
+  formatDataConfidence,
+  formatScore,
+  formatSpike,
+} from '../lib/format';
 
 interface Props {
   items: DailyRadarItem[];
 }
 
 const { items } = Astro.props;
-const topWhy = (item: DailyRadarItem) =>
-  item.why_it_moved?.[0] ?? item.signal_reason ?? 'Worth reading today';
 ---
 
 <section class="panel daily-radar-panel">
   <div class="panel-header">
     <h2>Daily Radar</h2>
-    <p>Briefing-style picks ranked by composite signal score and data confidence.</p>
+    <p>Today's highest quality signals. Curated by signal score and data confidence.</p>
   </div>
   {items.length === 0 ? (
     <p class="empty-state">No additional signals met the quality threshold today.</p>
@@ -26,7 +30,7 @@ const topWhy = (item: DailyRadarItem) =>
             <span class="rank">#{item.rank}</span>
             <span class="title-block">
               <span class="title">{item.title}</span>
-              <span class="reason">{topWhy(item)}</span>
+              <span class="reason">Why selected: {dailyRadarWhySelected(item)}</span>
             </span>
             <span class="meta">
               <span class="score-pill">Score {formatScore(item.signal_score)}</span>

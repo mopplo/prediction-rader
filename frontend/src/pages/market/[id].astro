@@ -13,6 +13,7 @@ import {
   formatPercent,
   formatRelativeUpdated,
   formatScore,
+  formatScoreOutOf100,
   formatSignificance,
   formatSpike,
   formatSyncedAtUtc,
@@ -34,9 +35,19 @@ interface Props {
 const { market } = Astro.props;
 const components = market.signal_components;
 const marketStatus = formatMarketStatus(market.market_status, market.resolves_in_days);
+const pageDescription = [
+  market.signal_reason,
+  `Probability ${formatPercent(market.probability, 1)}`,
+  `24h ${formatChange(market.change24h)}`,
+]
+  .filter(Boolean)
+  .join(' · ');
 ---
 
-<BaseLayout title={`${market.title} · Prediction Radar`}>
+<BaseLayout
+  title={`${market.title} · Prediction Radar`}
+  description={pageDescription || `Market signal detail for ${market.title}`}
+>
   <div class="container">
     <a href="/" class="back-link">← Back to radar</a>
 
@@ -52,14 +63,34 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
         {market.polymarket_url && (
           <a
             href={market.polymarket_url}
-            class="polymarket-link"
+            class="polymarket-cta"
             target="_blank"
             rel="noreferrer noopener"
           >
-            View on Polymarket
+            View on Polymarket ↗
           </a>
         )}
       </div>
+
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <p class="label">Current Probability</p>
+          <p class="value">{formatPercent(market.probability, 1)}</p>
+        </div>
+        <div class="hero-stat">
+          <p class="label">24h Change</p>
+          <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
+        </div>
+        <div class="hero-stat">
+          <p class="label">Signal Score</p>
+          <p class="value">{formatScoreOutOf100(market.signal_score)}</p>
+        </div>
+        <div class="hero-stat">
+          <p class="label">Data Confidence</p>
+          <p class="value">{formatDataConfidence(market.confidence)}</p>
+        </div>
+      </div>
+
       {market.signal_reason && <p class="description">{market.signal_reason}</p>}
       <p class="description">{formatCoverageHours(market.history_coverage_hours)}</p>
       <div class="sync-meta">
@@ -71,12 +102,15 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
     {market.why_it_moved && market.why_it_moved.length > 0 && (
       <section class="panel why-panel">
         <div class="panel-header">
-          <h2>Why It Moved</h2>
-          <p>Rule-based explanations derived from probability, volume, liquidity, and narrative context.</p>
+          <h2>Why This Signal Matters</h2>
+          <p>Rule-based facts from probability, volume, liquidity, and narrative context.</p>
         </div>
         <ul class="why-list">
           {market.why_it_moved.map((reason) => (
-            <li>{reason}</li>
+            <li>
+              <span class="why-mark" aria-hidden="true">•</span>
+              <span>{reason}</span>
+            </li>
           ))}
         </ul>
       </section>
@@ -94,20 +128,12 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
       <div class="panel">
         <div class="panel-header">
           <h2>Market Snapshot</h2>
-          <p>Belief shift, liquidity, and data quality for this market.</p>
+          <p>Extended liquidity, history, and status details for this market.</p>
         </div>
         <div class="stat-grid">
           <div class="stat-card">
-            <p class="label">Current Probability</p>
-            <p class="value">{formatPercent(market.probability, 1)}</p>
-          </div>
-          <div class="stat-card">
             <p class="label">1h Change</p>
             <p class={`value ${changeClass(market.change1h)}`}>{formatChange(market.change1h)}</p>
-          </div>
-          <div class="stat-card">
-            <p class="label">24h Change</p>
-            <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
           </div>
           <div class="stat-card">
             <p class="label">7d Change</p>
@@ -136,10 +162,6 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
             <p class="value">{marketStatus}</p>
           </div>
           <div class="stat-card">
-            <p class="label">Data Confidence</p>
-            <p class="value">{formatDataConfidence(market.confidence)}</p>
-          </div>
-          <div class="stat-card">
             <p class="label">End Date</p>
             <p class="value">{formatDate(market.end_date)}</p>
           </div>
@@ -154,29 +176,78 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
         {market.signal_score != null && (
           <div class="score-breakdown">
             <div class="panel-header compact">
-              <h3>Signal Score {market.signal_score.toFixed(0)}</h3>
-              <p>How strongly probability shift, attention, liquidity, and persistence combine.</p>
+              <h3>Signal Quality {formatScoreOutOf100(market.signal_score)}</h3>
+              <p>How probability momentum, volume, liquidity, and persistence combine.</p>
             </div>
             {components && (
               <div class="score-grid">
                 <div class="score-item">
-                  <span class="label">Probability</span>
+                  <span class="label">
+                    Probability Momentum
+                    <span
+                      class="info-tip"
+                      title="Strength of recent probability movement"
+                      aria-label="Strength of recent probability movement"
+                    >
+                      ?
+                    </span>
+                  </span>
                   <span class="value">{components.probability?.toFixed(0) ?? '—'}</span>
                 </div>
                 <div class="score-item">
-                  <span class="label">Volume</span>
+                  <span class="label">
+                    Volume Activity
+                    <span
+                      class="info-tip"
+                      title="Trading activity versus the recent baseline"
+                      aria-label="Trading activity versus the recent baseline"
+                    >
+                      ?
+                    </span>
+                  </span>
                   <span class="value">{components.volume?.toFixed(0) ?? '—'}</span>
                 </div>
                 <div class="score-item">
-                  <span class="label">Liquidity</span>
+                  <span class="label">
+                    Liquidity Quality
+                    <span
+                      class="info-tip"
+                      title="Depth available to absorb orders without large price impact"
+                      aria-label="Depth available to absorb orders without large price impact"
+                    >
+                      ?
+                    </span>
+                  </span>
                   <span class="value">{components.liquidity?.toFixed(0) ?? '—'}</span>
                 </div>
                 <div class="score-item">
-                  <span class="label">Persistence</span>
+                  <span class="label">
+                    Persistence
+                    <span
+                      class="info-tip"
+                      title="Whether the move holds across more than one lookback window"
+                      aria-label="Whether the move holds across more than one lookback window"
+                    >
+                      ?
+                    </span>
+                  </span>
                   <span class="value">{components.persistence?.toFixed(0) ?? '—'}</span>
                 </div>
               </div>
             )}
+            <div class="confidence-note">
+              <span class="label">
+                Data Confidence
+                <span
+                  class="info-tip"
+                  title="Independent quality score for history coverage and data reliability"
+                  aria-label="Independent quality score for history coverage and data reliability"
+                >
+                  ?
+                </span>
+              </span>
+              <span class="value">{formatDataConfidence(market.confidence)}</span>
+            </div>
           </div>
         )}
       </div>
@@ -224,11 +295,11 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
   }
 
   .status-pill,
-  .polymarket-link {
+  .polymarket-cta {
     display: inline-flex;
     align-items: center;
     min-height: 2.2rem;
-    padding: 0.4rem 0.75rem;
+    padding: 0.4rem 0.85rem;
     border-radius: 999px;
     font-size: 0.9rem;
     font-weight: 600;
@@ -244,10 +315,10 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
     color: #fca5a5;
   }
 
-  .polymarket-link {
-    background: rgba(59, 130, 246, 0.14);
-    color: #bfdbfe;
-    border: 1px solid rgba(96, 165, 250, 0.28);
+  .polymarket-cta {
+    background: rgba(59, 130, 246, 0.2);
+    color: #dbeafe;
+    border: 1px solid rgba(96, 165, 250, 0.4);
   }
 
   .panel-header.compact h3 {
@@ -262,20 +333,28 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
     margin-top: 0.75rem;
   }
 
-  .score-item {
+  .score-item,
+  .confidence-note {
     display: flex;
     justify-content: space-between;
+    gap: 0.75rem;
     padding: 0.75rem 0.9rem;
     border-radius: 12px;
     background: rgba(15, 23, 42, 0.65);
   }
 
-  .score-item .label {
+  .confidence-note {
+    margin-top: 0.75rem;
+  }
+
+  .score-item .label,
+  .confidence-note .label {
     color: #94a3b8;
     font-size: 0.85rem;
   }
 
-  .score-item .value {
+  .score-item .value,
+  .confidence-note .value {
     color: #e2e8f0;
     font-weight: 600;
   }
@@ -285,13 +364,25 @@ const marketStatus = formatMarketStatus(market.market_status, market.resolves_in
   }
 
   .why-list {
+    list-style: none;
     margin: 0;
-    padding-left: 1.25rem;
+    padding: 0;
     color: #cbd5e1;
     line-height: 1.6;
   }
 
+  .why-list li {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+  }
+
   .why-list li + li {
-    margin-top: 0.45rem;
+    margin-top: 0.55rem;
+  }
+
+  .why-mark {
+    color: #93c5fd;
+    font-weight: 700;
   }
 </style>

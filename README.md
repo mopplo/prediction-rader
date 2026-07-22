@@ -146,6 +146,7 @@ Because pages are static, trigger a Cloudflare rebuild when you want fresher hom
 ## API Endpoints
 
 - `GET /health`
+- `GET /api/stats`
 - `GET /api/markets`
 - `GET /api/top-movers`
 - `GET /api/emerging-signals`

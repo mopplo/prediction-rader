@@ -2,14 +2,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  dailyRadarWhySelected,
   formatChange,
   formatChange7d,
+  formatCount,
   formatCoverageHours,
   formatDataConfidence,
   formatMarketStatus,
   formatPercent,
   formatRelativeUpdated,
+  formatScoreOutOf100,
   formatSpike,
+  formatSyncCadence,
   formatSyncedAtUtc,
   formatVolume,
 } from '../src/lib/format.ts';
@@ -64,4 +68,33 @@ test('formatRelativeUpdated renders relative freshness', () => {
 test('formatMarketStatus renders open and closed states', () => {
   assert.equal(formatMarketStatus('open', 3), 'Open · Resolves in 3 days');
   assert.equal(formatMarketStatus('closed', null), 'Closed');
+});
+
+test('formatCount renders locale integers', () => {
+  assert.equal(formatCount(324), '324');
+  assert.equal(formatCount(null), '—');
+});
+
+test('formatScoreOutOf100 renders score scale', () => {
+  assert.equal(formatScoreOutOf100(67.4), '67/100');
+  assert.equal(formatScoreOutOf100(null), '—');
+});
+
+test('formatSyncCadence renders interval copy', () => {
+  assert.equal(formatSyncCadence(15), 'Every 15 min');
+  assert.equal(formatSyncCadence(null), 'Every 15 min');
+});
+
+test('dailyRadarWhySelected prefers factual why_it_moved', () => {
+  assert.equal(
+    dailyRadarWhySelected({
+      why_it_moved: ['24h probability rose 1.3pp'],
+      signal_reason: 'fallback',
+    }),
+    '24h probability rose 1.3pp',
+  );
+  assert.equal(
+    dailyRadarWhySelected({ signal_reason: 'High confidence pick' }),
+    'High confidence pick',
+  );
 });

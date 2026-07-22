@@ -1,0 +1,26 @@
+---
+import type { RadarStats } from '../lib/api';
+import { formatCount, formatRelativeUpdated, formatSyncCadence } from '../lib/format';
+
+interface Props {
+  stats: RadarStats;
+}
+
+const { stats } = Astro.props;
+---
+
+<section class="stats-bar" aria-label="Radar coverage stats">
+  <div class="stat">
+    <p class="label">Markets Tracked</p>
+    <p class="value">{formatCount(stats.markets_tracked)}</p>
+  </div>
+  <div class="stat">
+    <p class="label">Active Signals</p>
+    <p class="value">{formatCount(stats.active_signals)}</p>
+  </div>
+  <div class="stat">
+    <p class="label">Update Frequency</p>
+    <p class="value">{formatSyncCadence(stats.sync_interval_minutes)}</p>
+    <p class="hint">{formatRelativeUpdated(stats.last_synced_at)}</p>
+  </div>
+</section>
