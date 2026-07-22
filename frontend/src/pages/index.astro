@@ -3,12 +3,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import DailyRadar from '../components/DailyRadar.astro';
 import EmergingSignalCard from '../components/EmergingSignalCard.astro';
 import NarrativeTrends from '../components/NarrativeTrends.astro';
+import StatsBar from '../components/StatsBar.astro';
 import TopMoverCard from '../components/TopMoverCard.astro';
-import type { DailyRadarItem, MarketSummary, NarrativeTrendItem } from '../lib/api';
+import type { DailyRadarItem, MarketSummary, NarrativeTrendItem, RadarStats } from '../lib/api';
 import {
   getDailyRadar,
   getEmergingSignals,
   getNarrativeTrends,
+  getStats,
   getTopMovers,
 } from '../lib/api';
 
@@ -16,13 +18,15 @@ let topMovers: MarketSummary[] = [];
 let emergingSignals: MarketSummary[] = [];
 let dailyRadar: DailyRadarItem[] = [];
 let narrativeTrends: NarrativeTrendItem[] = [];
+let stats: RadarStats | null = null;
 
 try {
-  const [movers, emerging, radar, narratives] = await Promise.all([
+  const [movers, emerging, radar, narratives, radarStats] = await Promise.all([
     getTopMovers(),
     getEmergingSignals(),
     getDailyRadar(),
     getNarrativeTrends(),
+    getStats(),
   ]);
 
   topMovers = movers;
@@ -44,6 +48,7 @@ try {
   narrativeTrends = narratives.filter(
     (item) => !item.representative_market_id || !featuredIds.has(item.representative_market_id),
   );
+  stats = radarStats;
 } catch (error) {
   const message = error instanceof Error ? error.message : 'Unable to load radar data.';
   throw new Error(`Static build failed while loading homepage radar data: ${message}`);
@@ -58,13 +63,17 @@ try {
       Track belief shifts, emerging attention, forming narratives, and daily briefing picks across
       prediction markets.
     </p>
+    {stats && <StatsBar stats={stats} />}
   </section>
 
   <div class="container section-grid">
     <section class="panel">
       <div class="panel-header">
         <h2>Top Movers</h2>
-        <p>Largest validated 24h probability shifts — ranked by absolute move, then signal quality.</p>
+        <p>
+          Largest validated probability shifts. Discover where prediction markets changed their
+          beliefs.
+        </p>
       </div>
       {topMovers.length === 0 ? (
         <p class="empty-state">No markets passed the quality threshold for top movers.</p>
@@ -80,7 +89,10 @@ try {
     <section class="panel">
       <div class="panel-header">
         <h2>Emerging Signals</h2>
-        <p>Rising attention: volume spike + probability movement, ranked by attention score (50/30/20).</p>
+        <p>
+          Markets gaining attention now: volume spikes with meaningful probability movement,
+          ranked by attention score.
+        </p>
       </div>
       {emergingSignals.length === 0 ? (
         <p class="empty-state">No emerging signals met the confidence and volume thresholds.</p>

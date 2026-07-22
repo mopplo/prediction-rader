@@ -103,12 +103,23 @@ export interface PaginatedMarkets {
   offset: number;
 }
 
+export interface RadarStats {
+  markets_tracked: number;
+  active_signals: number;
+  last_synced_at?: string | null;
+  sync_interval_minutes: number;
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`);
   if (!response.ok) {
     throw new Error(`API ${path} failed: ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+export function getStats(): Promise<RadarStats> {
+  return fetchJson('/api/stats');
 }
 
 export function getTopMovers(): Promise<MarketSummary[]> {

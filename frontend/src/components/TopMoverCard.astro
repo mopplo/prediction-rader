@@ -5,7 +5,7 @@ import {
   formatChange,
   formatDataConfidence,
   formatPercent,
-  formatSignificance,
+  formatScoreOutOf100,
 } from '../lib/format';
 
 interface Props {
@@ -26,7 +26,16 @@ const change = market.change24h;
   </div>
 
   <div class="hero-metric">
-    <p class="label">24h Belief Shift</p>
+    <p class="label">
+      24h Probability Shift
+      <span
+        class="info-tip"
+        title="pp means percentage point. Example: 40% → 78% = +38pp"
+        aria-label="pp means percentage point. Example: 40% to 78% equals +38pp"
+      >
+        ?
+      </span>
+    </p>
     <p class={`hero-value ${changeClass(change)}`}>{formatChange(change)}</p>
   </div>
 
@@ -36,16 +45,16 @@ const change = market.change24h;
       <p class="value">{formatPercent(market.probability)}</p>
     </div>
     <div>
+      <p class="label">24h Change</p>
+      <p class={`value ${changeClass(change)}`}>{formatChange(change)}</p>
+    </div>
+    <div>
       <p class="label">Signal Score</p>
-      <p class="value">{market.signal_score?.toFixed(0) ?? '—'}</p>
+      <p class="value">{formatScoreOutOf100(market.signal_score)}</p>
     </div>
     <div>
       <p class="label">Data Confidence</p>
       <p class="value">{formatDataConfidence(market.confidence)}</p>
-    </div>
-    <div>
-      <p class="label">Significance</p>
-      <p class="value">{formatSignificance(market.market_significance)}</p>
     </div>
   </div>
 </a>

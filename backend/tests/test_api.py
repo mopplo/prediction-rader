@@ -111,6 +111,81 @@ def test_health(client: TestClient) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_radar_stats(client: TestClient) -> None:
+    response = client.get("/api/stats")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["markets_tracked"] == 1
+    assert payload["active_signals"] == 1
+    assert payload["sync_interval_minutes"] == 15
+    assert payload["last_synced_at"].startswith("2026-07-21T12:00:00")
+
+
+def test_radar_stats_dedupes_active_signals_across_types(client: TestClient) -> None:
+    session_factory = client.testing_session_local  # type: ignore[attr-defined]
+    db = session_factory()
+    db.add(
+        Market(
+            id="market-2",
+            title="Will the Fed cut rates in 2026?",
+            category="Macro",
+            current_probability=0.42,
+            volume_24h=500000,
+            volume_1wk=2500000,
+            eligibility_status="eligible",
+        )
+    )
+    db.add(
+        Signal(
+            market_id="market-1",
+            signal_type="emerging",
+            change_24h=0.05,
+            volume_spike=2.0,
+            signal_score=60.0,
+            confidence=75.0,
+            signal_reason="Emerging attention",
+            computed_at=datetime(2026, 7, 21, 12, 0, tzinfo=UTC),
+        )
+    )
+    db.add(
+        Signal(
+            market_id="market-2",
+            signal_type="daily_radar",
+            change_24h=0.03,
+            signal_score=50.0,
+            confidence=70.0,
+            signal_reason="Daily pick",
+            computed_at=datetime(2026, 7, 21, 12, 0, tzinfo=UTC),
+        )
+    )
+    db.commit()
+    db.close()
+
+    response = client.get("/api/stats")
+    payload = response.json()
+    assert payload["markets_tracked"] == 2
+    assert payload["active_signals"] == 2
+
+
+def test_radar_stats_empty(client: TestClient) -> None:
+    session_factory = client.testing_session_local  # type: ignore[attr-defined]
+    db = session_factory()
+    db.query(Signal).delete()
+    db.query(MarketMetric).delete()
+    db.query(Narrative).delete()
+    db.query(Market).delete()
+    db.commit()
+    db.close()
+
+    response = client.get("/api/stats")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["markets_tracked"] == 0
+    assert payload["active_signals"] == 0
+    assert payload["last_synced_at"] is None
+    assert payload["sync_interval_minutes"] == 15
+
+
 def test_top_movers(client: TestClient) -> None:
     response = client.get("/api/top-movers")
     assert response.status_code == 200

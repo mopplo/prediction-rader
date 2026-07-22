@@ -6,10 +6,13 @@ interface Props {
   description?: string;
 }
 
-const {
-  title = 'Prediction Radar',
-  description = 'Discover where the world is changing its mind.',
-} = Astro.props;
+const defaultTitle = 'Prediction Radar - Track Prediction Market Signals';
+const defaultDescription =
+  'Discover where prediction markets are changing their minds. Track probability shifts, emerging signals and global narratives.';
+
+const { title = defaultTitle, description = defaultDescription } = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site ?? 'https://radar.mopplo.com');
+const ogImageURL = new URL('/og-image.png', Astro.site ?? 'https://radar.mopplo.com');
 ---
 
 <!doctype html>
@@ -17,8 +20,22 @@ const {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content={description} />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prediction Radar" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={ogImageURL} />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
   </head>
   <body>
     <header class="site-header">
@@ -34,8 +51,15 @@ const {
       <slot />
     </main>
     <footer class="site-footer">
-      <div class="container">
-        <p>Data source: Polymarket public API. Updated every 15 minutes.</p>
+      <div class="container footer-inner">
+        <p class="footer-brand">Built by Mopplo</p>
+        <p class="footer-copy">
+          Prediction Radar is an independent prediction market intelligence tool.
+        </p>
+        <p class="footer-note">
+          Data: Polymarket public API. Backend syncs about every 15 minutes. Frontend pages refresh
+          when rebuilt.
+        </p>
       </div>
     </footer>
   </body>

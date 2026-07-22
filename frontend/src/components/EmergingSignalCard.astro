@@ -26,11 +26,11 @@ const { market } = Astro.props;
   </div>
 
   <div class="hero-metric">
-    <p class="label">Volume vs Baseline</p>
+    <p class="label">Attention Spike</p>
     <p class="hero-value">{formatSpike(market.volume_spike)}</p>
     <p class="hero-sub">
-      Attention score <strong>{formatScore(market.attention_score)}</strong>
-      · 24h {formatChange(market.change24h)}
+      Volume vs baseline · Attention {formatScore(market.attention_score)} · 24h
+      {formatChange(market.change24h)}
     </p>
   </div>
 
@@ -44,8 +44,8 @@ const { market } = Astro.props;
       <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
     </div>
     <div>
-      <p class="label">Attention Score</p>
-      <p class="value">{formatScore(market.attention_score)}</p>
+      <p class="label">Signal Score</p>
+      <p class="value">{formatScore(market.signal_score)}</p>
     </div>
     <div>
       <p class="label">Data Confidence</p>

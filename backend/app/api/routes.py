@@ -19,6 +19,7 @@ from app.schemas import (
     MarketSummary,
     NarrativeTrendItem,
     PaginatedMarkets,
+    RadarStats,
     SignalComponents,
 )
 
@@ -165,6 +166,25 @@ def _history_coverage_hours(snapshots: list[MarketSnapshot], *, now: datetime | 
     now = _ensure_utc(now or datetime.now(tz=UTC))
     earliest = min(_ensure_utc(snapshot.captured_at) for snapshot in snapshots)
     return max(0.0, (now - earliest).total_seconds() / 3600)
+
+
+@router.get("/stats", response_model=RadarStats)
+def radar_stats(db: Session = Depends(get_db)) -> RadarStats:
+    markets_tracked = db.scalar(select(func.count()).select_from(Market)) or 0
+    active_market_ids = {
+        signal.market_id
+        for signal_type in ("top_mover", "emerging", "daily_radar")
+        for signal in _dedupe_signals_by_market(_latest_batch_signals(db, signal_type))
+    }
+    last_synced_at = db.scalar(select(func.max(MarketMetric.computed_at)))
+    if last_synced_at is None:
+        last_synced_at = db.scalar(select(func.max(Signal.computed_at)))
+    return RadarStats(
+        markets_tracked=markets_tracked,
+        active_signals=len(active_market_ids),
+        last_synced_at=last_synced_at,
+        sync_interval_minutes=15,
+    )
 
 
 @router.get("/markets", response_model=PaginatedMarkets)

@@ -73,6 +73,42 @@ export function formatScore(value: number | null | undefined): string {
   return Math.round(value).toString();
 }
 
+export function formatScoreOutOf100(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) {
+    return '—';
+  }
+  return `${Math.round(value)}/100`;
+}
+
+export function formatCount(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) {
+    return '—';
+  }
+  return Math.round(value).toLocaleString('en-US');
+}
+
+export function formatSyncCadence(minutes: number | null | undefined): string {
+  if (minutes == null || Number.isNaN(minutes) || minutes <= 0) {
+    return 'Every 15 min';
+  }
+  return `Every ${Math.round(minutes)} min`;
+}
+
+export function dailyRadarWhySelected(item: {
+  why_it_moved?: string[] | null;
+  signal_reason?: string | null;
+}): string {
+  const why = item.why_it_moved?.[0]?.trim();
+  if (why) {
+    return why;
+  }
+  const reason = item.signal_reason?.trim();
+  if (reason) {
+    return reason;
+  }
+  return 'High-confidence signal with meaningful movement';
+}
+
 export function formatSignificance(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) {
     return '—';
