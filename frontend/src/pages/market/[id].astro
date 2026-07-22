@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ProbabilityChart from '../../components/ProbabilityChart.astro';
-import { getMarketDetail } from '../../lib/api';
+import { getAllMarketDetails, type MarketDetail } from '../../lib/api';
 import {
   changeClass,
   formatChange,
@@ -19,176 +19,168 @@ import {
   formatVolume,
 } from '../../lib/format';
 
-const { id } = Astro.params;
-
-if (!id) {
-  return Astro.redirect('/');
+export async function getStaticPaths() {
+  const details = await getAllMarketDetails();
+  return details.map((market) => ({
+    params: { id: market.id },
+    props: { market },
+  }));
 }
 
-let market = null;
-let errorMessage: string | null = null;
-
-try {
-  market = await getMarketDetail(id);
-} catch (error) {
-  errorMessage = error instanceof Error ? error.message : 'Unable to load market details.';
+interface Props {
+  market: MarketDetail;
 }
 
-const components = market?.signal_components;
-const marketStatus = market ? formatMarketStatus(market.market_status, market.resolves_in_days) : null;
+const { market } = Astro.props;
+const components = market.signal_components;
+const marketStatus = formatMarketStatus(market.market_status, market.resolves_in_days);
 ---
 
-<BaseLayout title={market ? `${market.title} · Prediction Radar` : 'Market · Prediction Radar'}>
+<BaseLayout title={`${market.title} · Prediction Radar`}>
   <div class="container">
     <a href="/" class="back-link">← Back to radar</a>
 
-    {errorMessage && <p class="error-state">{errorMessage}</p>}
-
-    {market && (
-      <>
-        <section class="detail-hero">
-          <h1>{market.title}</h1>
-          {market.category && <p class="category-tag">{market.category}</p>}
-          <div class="hero-meta">
-            {market.market_status && (
-              <span class={`status-pill ${market.market_status === 'closed' ? 'closed' : 'open'}`}>
-                {marketStatus}
-              </span>
-            )}
-            {market.polymarket_url && (
-              <a
-                href={market.polymarket_url}
-                class="polymarket-link"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                View on Polymarket
-              </a>
-            )}
-          </div>
-          {market.signal_reason && <p class="description">{market.signal_reason}</p>}
-          <p class="description">{formatCoverageHours(market.history_coverage_hours)}</p>
-          <div class="sync-meta">
-            <p>{formatRelativeUpdated(market.updated_at)}</p>
-            <p>Last synced at {formatSyncedAtUtc(market.last_synced_at ?? market.updated_at)}</p>
-          </div>
-        </section>
-
-        {market.why_it_moved && market.why_it_moved.length > 0 && (
-          <section class="panel why-panel">
-            <div class="panel-header">
-              <h2>Why It Moved</h2>
-              <p>Rule-based explanations derived from probability, volume, liquidity, and narrative context.</p>
-            </div>
-            <ul class="why-list">
-              {market.why_it_moved.map((reason) => (
-                <li>{reason}</li>
-              ))}
-            </ul>
-          </section>
+    <section class="detail-hero">
+      <h1>{market.title}</h1>
+      {market.category && <p class="category-tag">{market.category}</p>}
+      <div class="hero-meta">
+        {market.market_status && (
+          <span class={`status-pill ${market.market_status === 'closed' ? 'closed' : 'open'}`}>
+            {marketStatus}
+          </span>
         )}
+        {market.polymarket_url && (
+          <a
+            href={market.polymarket_url}
+            class="polymarket-link"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            View on Polymarket
+          </a>
+        )}
+      </div>
+      {market.signal_reason && <p class="description">{market.signal_reason}</p>}
+      <p class="description">{formatCoverageHours(market.history_coverage_hours)}</p>
+      <div class="sync-meta">
+        <p>{formatRelativeUpdated(market.updated_at)}</p>
+        <p>Last synced at {formatSyncedAtUtc(market.last_synced_at ?? market.updated_at)}</p>
+      </div>
+    </section>
 
-        <section class="detail-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h2>Probability History</h2>
-              <p>Stored CLOB and sync snapshots over the last 7 days.</p>
-            </div>
-            <ProbabilityChart history={market.history} coverageHours={market.history_coverage_hours} />
+    {market.why_it_moved && market.why_it_moved.length > 0 && (
+      <section class="panel why-panel">
+        <div class="panel-header">
+          <h2>Why It Moved</h2>
+          <p>Rule-based explanations derived from probability, volume, liquidity, and narrative context.</p>
+        </div>
+        <ul class="why-list">
+          {market.why_it_moved.map((reason) => (
+            <li>{reason}</li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    <section class="detail-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Probability History</h2>
+          <p>Stored CLOB and sync snapshots over the last 7 days.</p>
+        </div>
+        <ProbabilityChart history={market.history} coverageHours={market.history_coverage_hours} />
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Market Snapshot</h2>
+          <p>Belief shift, liquidity, and data quality for this market.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="label">Current Probability</p>
+            <p class="value">{formatPercent(market.probability, 1)}</p>
           </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h2>Market Snapshot</h2>
-              <p>Belief shift, liquidity, and data quality for this market.</p>
+          <div class="stat-card">
+            <p class="label">1h Change</p>
+            <p class={`value ${changeClass(market.change1h)}`}>{formatChange(market.change1h)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">24h Change</p>
+            <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">7d Change</p>
+            <p class={`value ${changeClass(market.change7d)}`}>
+              {formatChange7d(market.change7d, market.change7d_unavailable_reason)}
+            </p>
+          </div>
+          <div class="stat-card">
+            <p class="label">24h Volume</p>
+            <p class="value">{formatVolume(market.volume)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Volume vs Baseline</p>
+            <p class="value">{formatSpike(market.volume_spike)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Liquidity</p>
+            <p class="value">{formatVolume(market.liquidity)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Market Significance</p>
+            <p class="value">{formatSignificance(market.market_significance)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Market Status</p>
+            <p class="value">{marketStatus}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Data Confidence</p>
+            <p class="value">{formatDataConfidence(market.confidence)}</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">End Date</p>
+            <p class="value">{formatDate(market.end_date)}</p>
+          </div>
+          {market.attention_score != null && (
+            <div class="stat-card">
+              <p class="label">Attention Score</p>
+              <p class="value">{formatScore(market.attention_score)}</p>
             </div>
-            <div class="stat-grid">
-              <div class="stat-card">
-                <p class="label">Current Probability</p>
-                <p class="value">{formatPercent(market.probability, 1)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">1h Change</p>
-                <p class={`value ${changeClass(market.change1h)}`}>{formatChange(market.change1h)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">24h Change</p>
-                <p class={`value ${changeClass(market.change24h)}`}>{formatChange(market.change24h)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">7d Change</p>
-                <p class={`value ${changeClass(market.change7d)}`}>
-                  {formatChange7d(market.change7d, market.change7d_unavailable_reason)}
-                </p>
-              </div>
-              <div class="stat-card">
-                <p class="label">24h Volume</p>
-                <p class="value">{formatVolume(market.volume)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">Volume vs Baseline</p>
-                <p class="value">{formatSpike(market.volume_spike)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">Liquidity</p>
-                <p class="value">{formatVolume(market.liquidity)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">Market Significance</p>
-                <p class="value">{formatSignificance(market.market_significance)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">Market Status</p>
-                <p class="value">{marketStatus ?? 'Status unavailable'}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">Data Confidence</p>
-                <p class="value">{formatDataConfidence(market.confidence)}</p>
-              </div>
-              <div class="stat-card">
-                <p class="label">End Date</p>
-                <p class="value">{formatDate(market.end_date)}</p>
-              </div>
-              {market.attention_score != null && (
-                <div class="stat-card">
-                  <p class="label">Attention Score</p>
-                  <p class="value">{formatScore(market.attention_score)}</p>
-                </div>
-              )}
-            </div>
+          )}
+        </div>
 
-            {market.signal_score != null && (
-              <div class="score-breakdown">
-                <div class="panel-header compact">
-                  <h3>Signal Score {market.signal_score.toFixed(0)}</h3>
-                  <p>How strongly probability shift, attention, liquidity, and persistence combine.</p>
+        {market.signal_score != null && (
+          <div class="score-breakdown">
+            <div class="panel-header compact">
+              <h3>Signal Score {market.signal_score.toFixed(0)}</h3>
+              <p>How strongly probability shift, attention, liquidity, and persistence combine.</p>
+            </div>
+            {components && (
+              <div class="score-grid">
+                <div class="score-item">
+                  <span class="label">Probability</span>
+                  <span class="value">{components.probability?.toFixed(0) ?? '—'}</span>
                 </div>
-                {components && (
-                  <div class="score-grid">
-                    <div class="score-item">
-                      <span class="label">Probability</span>
-                      <span class="value">{components.probability?.toFixed(0) ?? '—'}</span>
-                    </div>
-                    <div class="score-item">
-                      <span class="label">Volume</span>
-                      <span class="value">{components.volume?.toFixed(0) ?? '—'}</span>
-                    </div>
-                    <div class="score-item">
-                      <span class="label">Liquidity</span>
-                      <span class="value">{components.liquidity?.toFixed(0) ?? '—'}</span>
-                    </div>
-                    <div class="score-item">
-                      <span class="label">Persistence</span>
-                      <span class="value">{components.persistence?.toFixed(0) ?? '—'}</span>
-                    </div>
-                  </div>
-                )}
+                <div class="score-item">
+                  <span class="label">Volume</span>
+                  <span class="value">{components.volume?.toFixed(0) ?? '—'}</span>
+                </div>
+                <div class="score-item">
+                  <span class="label">Liquidity</span>
+                  <span class="value">{components.liquidity?.toFixed(0) ?? '—'}</span>
+                </div>
+                <div class="score-item">
+                  <span class="label">Persistence</span>
+                  <span class="value">{components.persistence?.toFixed(0) ?? '—'}</span>
+                </div>
               </div>
             )}
           </div>
-        </section>
-      </>
-    )}
+        )}
+      </div>
+    </section>
   </div>
 </BaseLayout>
 

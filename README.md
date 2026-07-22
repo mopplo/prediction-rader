@@ -6,10 +6,30 @@ Prediction Radar monitors Polymarket and highlights meaningful changes in probab
 
 ## Stack
 
-- **Backend:** FastAPI, SQLAlchemy, Alembic, PostgreSQL
+- **Backend:** FastAPI, SQLAlchemy, Alembic, PostgreSQL (local Docker or Supabase)
 - **Scheduler:** 15-minute sync job
-- **Frontend:** Astro (SSR)
+- **Frontend:** Astro static site (Cloudflare Pages in production)
 - **Data source:** Polymarket Gamma API + CLOB price history
+
+## Architecture
+
+### Local development
+
+```text
+Browser → Astro (dev) → FastAPI → Docker Postgres
+```
+
+### Production
+
+```text
+Browser → Cloudflare Pages (static HTML)
+                ↓ build-time fetch
+           Render FastAPI
+                ↓
+           Supabase PostgreSQL
+```
+
+Static pages are snapshots generated at Cloudflare build time. New markets and updated scores appear after the next frontend rebuild.
 
 ## Quick Start
 
@@ -17,6 +37,7 @@ Prediction Radar monitors Polymarket and highlights meaningful changes in probab
 
 ```bash
 cp .env.example .env
+cp frontend/.env.example frontend/.env
 ```
 
 2. Start the full stack:
@@ -69,10 +90,58 @@ pytest
 ```bash
 cd frontend
 npm install
+cp .env.example .env
 npm run dev
 ```
 
-Set `API_BASE_URL=http://localhost:8000` when running Astro locally.
+Set `API_BASE_URL=http://localhost:8000` in `frontend/.env`.
+
+Production-style static build:
+
+```bash
+cd frontend
+API_BASE_URL=http://localhost:8000 npm run build
+npm run preview
+```
+
+## Production Deployment
+
+### Render (API + scheduler)
+
+Environment variables:
+
+```env
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres
+CORS_ORIGINS=https://radar.mopplo.com,https://YOUR_PROJECT.pages.dev
+```
+
+Suggested start command:
+
+```bash
+alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Run the scheduler as a separate Render Background Worker / Cron:
+
+```bash
+python -m app.jobs.sync_markets
+```
+
+### Cloudflare Pages (frontend)
+
+Keep the monorepo. Configure Pages against the same Git repository:
+
+| Setting | Value |
+|---------|-------|
+| Root Directory | `frontend` |
+| Build command | `npm install && npm run build` |
+| Build output directory | `dist` |
+| Environment variable | `API_BASE_URL=https://YOUR_RENDER_API` |
+| Node version | `22` |
+
+Recommended custom domain: `radar.mopplo.com`.
+
+Because pages are static, trigger a Cloudflare rebuild when you want fresher homepage/detail snapshots. The backend can keep syncing every 15 minutes independently.
 
 ## API Endpoints
 
@@ -121,9 +190,9 @@ backend/
 frontend/
   src/
     components/   UI building blocks
+    lib/          API client and formatters
     pages/        Home and market detail pages
 docker-compose.yml
-PRD.md
 ```
 
 ## Success Criteria
