@@ -106,7 +106,7 @@ npm run preview
 
 ## Production Deployment
 
-### Render (API + scheduler)
+### Render (API)
 
 Environment variables:
 
@@ -121,11 +121,20 @@ Suggested start command:
 alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Run the scheduler as a separate Render Background Worker / Cron:
+### GitHub Actions (market sync)
 
-```bash
-python -m app.jobs.sync_markets
-```
+Use a scheduled workflow instead of a paid Render Cron / Background Worker.
+
+1. In the GitHub repo: **Settings → Secrets and variables → Actions**
+2. Add a repository secret:
+   - `DATABASE_URL` — same Supabase/Postgres URL used by Render (`postgresql+psycopg://...`)
+3. Workflow: [`.github/workflows/sync.yml`](.github/workflows/sync.yml)
+   - Schedule: every 15 minutes (UTC)
+   - Manual run: **Actions → Sync Polymarket markets → Run workflow**
+   - Command: `python -m app.jobs.sync_markets --once`
+4. Optional: add more `env` keys in the workflow if you need non-default sync limits.
+
+Ensure the database allows connections from GitHub Actions (public Supabase connection usually works). Frontend snapshots still refresh only when Cloudflare rebuilds.
 
 ### Cloudflare (frontend)
 
