@@ -1,5 +1,11 @@
 name = "prediction-rader"
-compatibility_date = "2025-01-01"
+main = "./dist/_worker.js/index.js"
+compatibility_date = "2026-07-23"
+compatibility_flags = ["nodejs_compat"]
 
 [assets]
+binding = "ASSETS"
 directory = "./dist"
+
+[observability]
+enabled = true

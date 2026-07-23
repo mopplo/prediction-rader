@@ -1,7 +1,7 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ProbabilityChart from '../../components/ProbabilityChart.astro';
-import { getAllMarketDetails, type MarketDetail } from '../../lib/api';
+import { ApiError, getMarketDetail, resolveApiBaseUrl, type MarketDetail } from '../../lib/api';
 import {
   changeClass,
   formatChange,
@@ -20,19 +20,28 @@ import {
   formatVolume,
 } from '../../lib/format';
 
-export async function getStaticPaths() {
-  const details = await getAllMarketDetails();
-  return details.map((market) => ({
-    params: { id: market.id },
-    props: { market },
-  }));
+const { id } = Astro.params;
+if (!id) {
+  return new Response(null, { status: 404, statusText: 'Not Found' });
 }
 
-interface Props {
-  market: MarketDetail;
+const apiBaseUrl = resolveApiBaseUrl(Astro.locals.runtime?.env);
+
+let market: MarketDetail;
+try {
+  market = await getMarketDetail(id, apiBaseUrl);
+} catch (error) {
+  if (error instanceof ApiError && error.status === 404) {
+    return new Response(null, { status: 404, statusText: 'Not Found' });
+  }
+  const message = error instanceof Error ? error.message : 'Upstream API unavailable';
+  return new Response(`Market data is temporarily unavailable: ${message}`, {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
 }
 
-const { market } = Astro.props;
 const components = market.signal_components;
 const marketStatus = formatMarketStatus(market.market_status, market.resolves_in_days);
 const pageDescription = [

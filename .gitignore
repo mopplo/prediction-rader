@@ -150,6 +150,7 @@ activemq-data/
 # Environments
 .env
 .envrc
+.dev.vars
 .venv
 env/
 venv/
@@ -221,6 +222,8 @@ __marimo__/
 node_modules/
 frontend/dist/
 frontend/.astro/
+frontend/.wrangler/
+frontend/worker-configuration.d.ts
 
 # Docker / local env
 .env

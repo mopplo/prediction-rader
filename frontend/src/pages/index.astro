@@ -12,21 +12,25 @@ import {
   getNarrativeTrends,
   getStats,
   getTopMovers,
+  resolveApiBaseUrl,
 } from '../lib/api';
+
+const apiBaseUrl = resolveApiBaseUrl(Astro.locals.runtime?.env);
 
 let topMovers: MarketSummary[] = [];
 let emergingSignals: MarketSummary[] = [];
 let dailyRadar: DailyRadarItem[] = [];
 let narrativeTrends: NarrativeTrendItem[] = [];
 let stats: RadarStats | null = null;
+let loadError: string | null = null;
 
 try {
   const [movers, emerging, radar, narratives, radarStats] = await Promise.all([
-    getTopMovers(),
-    getEmergingSignals(),
-    getDailyRadar(),
-    getNarrativeTrends(),
-    getStats(),
+    getTopMovers(apiBaseUrl),
+    getEmergingSignals(apiBaseUrl),
+    getDailyRadar(apiBaseUrl),
+    getNarrativeTrends(apiBaseUrl),
+    getStats(apiBaseUrl),
   ]);
 
   topMovers = movers;
@@ -50,8 +54,7 @@ try {
   );
   stats = radarStats;
 } catch (error) {
-  const message = error instanceof Error ? error.message : 'Unable to load radar data.';
-  throw new Error(`Static build failed while loading homepage radar data: ${message}`);
+  loadError = error instanceof Error ? error.message : 'Unable to load radar data.';
 }
 ---
 
@@ -67,6 +70,13 @@ try {
   </section>
 
   <div class="container section-grid">
+    {loadError && (
+      <p class="error-state">
+        Radar data is temporarily unavailable. The API may be waking up or unreachable.
+        ({loadError})
+      </p>
+    )}
+
     <section class="panel">
       <div class="panel-header">
         <h2>Top Movers</h2>
@@ -76,7 +86,11 @@ try {
         </p>
       </div>
       {topMovers.length === 0 ? (
-        <p class="empty-state">No markets passed the quality threshold for top movers.</p>
+        <p class="empty-state">
+          {loadError
+            ? 'Top movers could not be loaded right now.'
+            : 'No markets passed the quality threshold for top movers.'}
+        </p>
       ) : (
         <div class="cards-grid">
           {topMovers.map((market) => (
@@ -95,7 +109,11 @@ try {
         </p>
       </div>
       {emergingSignals.length === 0 ? (
-        <p class="empty-state">No emerging signals met the confidence and volume thresholds.</p>
+        <p class="empty-state">
+          {loadError
+            ? 'Emerging signals could not be loaded right now.'
+            : 'No emerging signals met the confidence and volume thresholds.'}
+        </p>
       ) : (
         <div class="cards-grid">
           {emergingSignals.map((market) => (

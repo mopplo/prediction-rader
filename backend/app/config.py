@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     sync_market_limit: int = 200
     sync_volume_sample: int = 150
     sync_bucket_sample: int = 50
+    snapshot_retention_days: int = 7
     min_volume_24h: float = 10000.0
     min_liquidity: float = 5000.0
     min_probability: float = 0.05

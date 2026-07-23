@@ -1,5 +1,3 @@
-const API_BASE_URL = import.meta.env?.API_BASE_URL ?? 'http://localhost:8000';
-
 export interface MarketSummary {
   id: string;
   title: string;
@@ -110,40 +108,68 @@ export interface RadarStats {
   sync_interval_minutes: number;
 }
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+export class ApiError extends Error {
+  status: number;
+
+  constructor(path: string, status: number) {
+    super(`API ${path} failed: ${status}`);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+export function resolveApiBaseUrl(
+  runtimeEnv?: Record<string, unknown> | null,
+  buildTimeUrl: string | undefined = import.meta.env?.API_BASE_URL,
+): string {
+  const fromRuntime = runtimeEnv?.API_BASE_URL;
+  if (typeof fromRuntime === 'string' && fromRuntime.trim().length > 0) {
+    return fromRuntime.trim().replace(/\/$/, '');
+  }
+  if (typeof buildTimeUrl === 'string' && buildTimeUrl.trim().length > 0) {
+    return buildTimeUrl.trim().replace(/\/$/, '');
+  }
+  return 'http://localhost:8000';
+}
+
+async function fetchJson<T>(path: string, baseUrl: string): Promise<T> {
+  const response = await fetch(`${baseUrl}${path}`);
   if (!response.ok) {
-    throw new Error(`API ${path} failed: ${response.status}`);
+    throw new ApiError(path, response.status);
   }
   return response.json() as Promise<T>;
 }
 
-export function getStats(): Promise<RadarStats> {
-  return fetchJson('/api/stats');
+export function getStats(baseUrl: string): Promise<RadarStats> {
+  return fetchJson('/api/stats', baseUrl);
 }
 
-export function getTopMovers(): Promise<MarketSummary[]> {
-  return fetchJson('/api/top-movers');
+export function getTopMovers(baseUrl: string): Promise<MarketSummary[]> {
+  return fetchJson('/api/top-movers', baseUrl);
 }
 
-export function getEmergingSignals(): Promise<MarketSummary[]> {
-  return fetchJson('/api/emerging-signals');
+export function getEmergingSignals(baseUrl: string): Promise<MarketSummary[]> {
+  return fetchJson('/api/emerging-signals', baseUrl);
 }
 
-export function getDailyRadar(): Promise<DailyRadarItem[]> {
-  return fetchJson('/api/daily-radar');
+export function getDailyRadar(baseUrl: string): Promise<DailyRadarItem[]> {
+  return fetchJson('/api/daily-radar', baseUrl);
 }
 
-export function getNarrativeTrends(): Promise<NarrativeTrendItem[]> {
-  return fetchJson('/api/narrative-trends');
+export function getNarrativeTrends(baseUrl: string): Promise<NarrativeTrendItem[]> {
+  return fetchJson('/api/narrative-trends', baseUrl);
 }
 
-export function getMarketDetail(id: string): Promise<MarketDetail> {
-  return fetchJson(`/api/market/${id}`);
+export function getMarketDetail(id: string, baseUrl: string): Promise<MarketDetail> {
+  return fetchJson(`/api/market/${id}`, baseUrl);
 }
 
-export function listMarkets(limit = 100, offset = 0): Promise<PaginatedMarkets> {
-  return fetchJson(`/api/markets?limit=${limit}&offset=${offset}`);
+export function listMarkets(
+  baseUrl: string,
+  limit = 100,
+  offset = 0,
+): Promise<PaginatedMarkets> {
+  return fetchJson(`/api/markets?limit=${limit}&offset=${offset}`, baseUrl);
 }
 
 export function shouldContinueMarketPagination(
@@ -174,22 +200,4 @@ export async function collectAllMarketPages(
   }
 
   return items;
-}
-
-export function getAllMarkets(pageSize = 100): Promise<MarketSummary[]> {
-  return collectAllMarketPages(listMarkets, pageSize);
-}
-
-export async function getAllMarketDetails(pageSize = 100): Promise<MarketDetail[]> {
-  const markets = await getAllMarkets(pageSize);
-  const details: MarketDetail[] = [];
-
-  const chunkSize = 20;
-  for (let index = 0; index < markets.length; index += chunkSize) {
-    const chunk = markets.slice(index, index + chunkSize);
-    const chunkDetails = await Promise.all(chunk.map((market) => getMarketDetail(market.id)));
-    details.push(...chunkDetails);
-  }
-
-  return details;
 }

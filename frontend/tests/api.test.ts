@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  ApiError,
   collectAllMarketPages,
+  resolveApiBaseUrl,
   shouldContinueMarketPagination,
   type PaginatedMarkets,
 } from '../src/lib/api.ts';
@@ -59,4 +61,23 @@ test('collectAllMarketPages stops when a page returns no items', async () => {
   }));
 
   assert.deepEqual(items, []);
+});
+
+test('resolveApiBaseUrl prefers runtime env over build-time values', () => {
+  assert.equal(
+    resolveApiBaseUrl({ API_BASE_URL: 'https://api.example.com/' }, 'http://localhost:8000'),
+    'https://api.example.com',
+  );
+});
+
+test('resolveApiBaseUrl falls back to build-time and localhost', () => {
+  assert.equal(resolveApiBaseUrl({}, 'http://localhost:9000'), 'http://localhost:9000');
+  assert.equal(resolveApiBaseUrl(null, undefined), 'http://localhost:8000');
+  assert.equal(resolveApiBaseUrl({ API_BASE_URL: '   ' }, undefined), 'http://localhost:8000');
+});
+
+test('ApiError captures status codes', () => {
+  const error = new ApiError('/api/market/1', 404);
+  assert.equal(error.status, 404);
+  assert.match(error.message, /404/);
 });
