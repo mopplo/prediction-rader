@@ -89,7 +89,11 @@ export function formatCount(value: number | null | undefined): string {
 
 export function formatSyncCadence(minutes: number | null | undefined): string {
   if (minutes == null || Number.isNaN(minutes) || minutes <= 0) {
-    return 'Every 15 min';
+    return 'Every 2 hours';
+  }
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `Every ${hours} hour${hours === 1 ? '' : 's'}`;
   }
   return `Every ${Math.round(minutes)} min`;
 }

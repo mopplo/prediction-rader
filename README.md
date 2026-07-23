@@ -7,8 +7,8 @@ Prediction Radar monitors Polymarket and highlights meaningful changes in probab
 ## Stack
 
 - **Backend:** FastAPI, SQLAlchemy, Alembic, PostgreSQL (local Docker or Supabase)
-- **Scheduler:** 15-minute sync job
-- **Frontend:** Astro static site (Cloudflare Pages in production)
+- **Scheduler:** GitHub Actions every 2 hours (`sync.yml`)
+- **Frontend:** Astro SSR on Cloudflare Workers
 - **Data source:** Polymarket Gamma API + CLOB price history
 
 ## Architecture
@@ -22,14 +22,16 @@ Browser → Astro (dev) → FastAPI → Docker Postgres
 ### Production
 
 ```text
-Browser → Cloudflare Pages (static HTML)
-                ↓ build-time fetch
+Browser → Cloudflare Worker (Astro SSR)
+                ↓ per-request fetch
            Render FastAPI
                 ↓
            Supabase PostgreSQL
+                ↑
+           GitHub Actions sync (every 2 hours)
 ```
 
-Static pages are snapshots generated at Cloudflare build time. New markets and updated scores appear after the next frontend rebuild.
+Pages render on each request. After the backend syncs, refreshing the site shows new data without redeploying the frontend.
 
 ## Quick Start
 
@@ -94,13 +96,13 @@ cp .env.example .env
 npm run dev
 ```
 
-Set `API_BASE_URL=http://localhost:8000` in `frontend/.env`.
+Set `API_BASE_URL=http://localhost:8000` in `frontend/.env` for `astro dev`.
 
-Production-style static build:
+SSR preview with Wrangler (production-like Worker):
 
 ```bash
 cd frontend
-API_BASE_URL=http://localhost:8000 npm run build
+cp .dev.vars.example .dev.vars
 npm run preview
 ```
 
@@ -112,7 +114,7 @@ Environment variables:
 
 ```env
 DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres
-CORS_ORIGINS=https://radar.mopplo.com,https://YOUR_PROJECT.pages.dev
+CORS_ORIGINS=https://radar.mopplo.com,https://prediction-rader.<account>.workers.dev
 ```
 
 Suggested start command:
@@ -120,6 +122,8 @@ Suggested start command:
 ```bash
 alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
+
+SSR page rendering fetches the API from the Cloudflare Worker, so browser CORS is not required for HTML. Keep `CORS_ORIGINS` set if you later add browser-side API calls.
 
 ### GitHub Actions (market sync)
 
@@ -129,28 +133,56 @@ Use a scheduled workflow instead of a paid Render Cron / Background Worker.
 2. Add a repository secret:
    - `DATABASE_URL` — same Supabase/Postgres URL used by Render (`postgresql+psycopg://...`)
 3. Workflow: [`.github/workflows/sync.yml`](.github/workflows/sync.yml)
-   - Schedule: every 15 minutes (UTC)
+   - Schedule: every 2 hours (UTC); job timeout 90 minutes
    - Manual run: **Actions → Sync Polymarket markets → Run workflow**
    - Command: `python -m app.jobs.sync_markets --once`
 4. Optional: add more `env` keys in the workflow if you need non-default sync limits.
 
-Ensure the database allows connections from GitHub Actions (public Supabase connection usually works). Frontend snapshots still refresh only when Cloudflare rebuilds.
+Ensure the database allows connections from GitHub Actions (public Supabase connection usually works). After sync succeeds, refresh the frontend — no Cloudflare redeploy is required for data freshness.
 
-### Cloudflare (frontend)
+Each sync also prunes `market_snapshots` older than `SNAPSHOT_RETENTION_DAYS` (default **7**), so Free Supabase storage does not grow unbounded. Detail charts already only read the last 7 days of history.
 
-Keep the monorepo. Root Directory = `frontend`. Config lives in `frontend/wrangler.toml` (static assets from `dist`).
+### Cloudflare Workers (frontend SSR)
+
+Keep the monorepo. Config lives in [`frontend/wrangler.toml`](frontend/wrangler.toml).
+
+#### Cloudflare Dashboard / Git deploy
 
 | Setting | Value |
 |---------|-------|
 | Root Directory | `frontend` |
-| Build command | `npm install && npm run build` |
+| Build command | `npm ci && npm run build` |
 | Deploy command | `npx wrangler deploy` |
-| Build environment variable | `API_BASE_URL=https://YOUR_RENDER_API` (must be a **build-time** var, not only runtime) |
 | Node version | `22` |
+| Runtime variable | `API_BASE_URL=https://YOUR_RENDER_API` (**Variables and Secrets**, plaintext) |
+
+Steps:
+
+1. Keep Worker project name `prediction-rader` (matches `wrangler.toml`).
+2. Set Root Directory to `frontend`.
+3. Build: `npm ci && npm run build`.
+4. Deploy: `npx wrangler deploy`.
+5. In **Settings → Variables and Secrets**, add runtime plaintext `API_BASE_URL` pointing at your Render API (for example `https://prediction-rader.onrender.com`). This is a **runtime** Worker var, not a build-only var.
+6. Bind custom domain `radar.mopplo.com`.
+7. After deploy, open the site and confirm homepage HTML includes live radar data. Sync the backend, refresh again, and confirm stats/markets update without redeploying Cloudflare.
+
+#### Local CLI deploy
+
+```bash
+cd frontend
+npm ci
+npm run build
+npx wrangler deploy
+```
+
+Set the production API URL once:
+
+```bash
+npx wrangler secret put API_BASE_URL
+# or configure plaintext [vars] in the Cloudflare dashboard
+```
 
 Recommended custom domain: `radar.mopplo.com`.
-
-Because pages are static, trigger a Cloudflare rebuild when you want fresher homepage/detail snapshots. The backend can keep syncing every 15 minutes independently.
 
 ## API Endpoints
 

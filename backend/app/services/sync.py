@@ -141,6 +141,7 @@ class SyncService:
         narratives = aggregate_narratives(candidates, settings=self.settings, limit=999)
         self._replace_narratives(narratives, now)
         self._replace_signals(candidates, now)
+        snapshots_pruned = self._prune_old_snapshots(now)
         self.db.commit()
 
         top_movers = rank_top_movers(candidates, settings=self.settings, limit=999)
@@ -148,13 +149,15 @@ class SyncService:
         daily = rank_daily_radar(candidates, settings=self.settings, limit=999)
 
         logger.info(
-            "Sync stats: synced=%s eligible=%s top_movers=%s emerging=%s daily=%s narratives=%s filters=%s",
+            "Sync stats: synced=%s eligible=%s top_movers=%s emerging=%s daily=%s narratives=%s "
+            "snapshots_pruned=%s filters=%s",
             synced_markets,
             filter_stats["eligible"],
             len(top_movers),
             len(emerging),
             len(daily),
             len(narratives),
+            snapshots_pruned,
             filter_stats,
         )
 
@@ -164,6 +167,7 @@ class SyncService:
             "emerging_signals": len(emerging),
             "daily_radar": len(daily),
             "narratives": len(narratives),
+            "snapshots_pruned": snapshots_pruned,
             "filter_stats": filter_stats,
         }
 
@@ -183,6 +187,20 @@ class SyncService:
             self.db.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": SYNC_LOCK_KEY})
         except Exception:
             return None
+
+    def _prune_old_snapshots(self, now: datetime | None = None) -> int:
+        retention_days = max(1, int(self.settings.snapshot_retention_days))
+        cutoff = (now or datetime.now(tz=UTC)) - timedelta(days=retention_days)
+        result = self.db.execute(delete(MarketSnapshot).where(MarketSnapshot.captured_at < cutoff))
+        pruned = int(result.rowcount or 0)
+        if pruned:
+            logger.info(
+                "Pruned %s market snapshots older than %s days (before %s)",
+                pruned,
+                retention_days,
+                cutoff.isoformat(),
+            )
+        return pruned
 
     def _upsert_market(self, parsed, eligible: bool, eligibility_reason: str) -> Market:
         market = self.db.get(Market, parsed.id)

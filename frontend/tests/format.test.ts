@@ -82,7 +82,8 @@ test('formatScoreOutOf100 renders score scale', () => {
 
 test('formatSyncCadence renders interval copy', () => {
   assert.equal(formatSyncCadence(15), 'Every 15 min');
-  assert.equal(formatSyncCadence(null), 'Every 15 min');
+  assert.equal(formatSyncCadence(120), 'Every 2 hours');
+  assert.equal(formatSyncCadence(null), 'Every 2 hours');
 });
 
 test('dailyRadarWhySelected prefers factual why_it_moved', () => {

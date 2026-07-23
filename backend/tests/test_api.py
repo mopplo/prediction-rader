@@ -117,7 +117,7 @@ def test_radar_stats(client: TestClient) -> None:
     payload = response.json()
     assert payload["markets_tracked"] == 1
     assert payload["active_signals"] == 1
-    assert payload["sync_interval_minutes"] == 15
+    assert payload["sync_interval_minutes"] == 120
     assert payload["last_synced_at"].startswith("2026-07-21T12:00:00")
 
 
@@ -183,7 +183,7 @@ def test_radar_stats_empty(client: TestClient) -> None:
     assert payload["markets_tracked"] == 0
     assert payload["active_signals"] == 0
     assert payload["last_synced_at"] is None
-    assert payload["sync_interval_minutes"] == 15
+    assert payload["sync_interval_minutes"] == 120
 
 
 def test_top_movers(client: TestClient) -> None:

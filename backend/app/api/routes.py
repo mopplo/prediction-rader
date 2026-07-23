@@ -183,7 +183,7 @@ def radar_stats(db: Session = Depends(get_db)) -> RadarStats:
         markets_tracked=markets_tracked,
         active_signals=len(active_market_ids),
         last_synced_at=last_synced_at,
-        sync_interval_minutes=15,
+        sync_interval_minutes=120,
     )
 
 
